@@ -84,7 +84,7 @@ def generate_html_form(data, errors, is_logged_in=False, credentials=None):
     logout_button = load_template("logout_button.html") if is_logged_in else ""
 
     # Основная форма
-    main_form = load_template("main_form.html")
+    main_form = load_template("index.html")
 
     # Контекст для формы
     context = {
