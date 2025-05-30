@@ -12,7 +12,7 @@ import html
 def create_connection():
     try:
         return pymysql.connect(
-            host='130.193.46.226',
+            host='158.160.163.114',
             user='u68593',
             password='9258357',
             database='web_db',
