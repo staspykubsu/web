@@ -147,6 +147,11 @@ function handleLogout(e) {
     showSuccessMessage('Вы вышли из системы');
     checkAuthStatus();
     
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.reset();
+    }
+    
     const registrationForm = document.getElementById('registration-form');
     if (registrationForm) {
         registrationForm.reset();
