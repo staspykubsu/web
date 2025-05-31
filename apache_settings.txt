@@ -1,0 +1,23 @@
+apache settings for WebProject in /etc/apache2/sites-available/000-default.conf
+
+
+<Directory "/var/www/html/WebProject">
+    CGIPassAuth On
+    Options +ExecCGI
+    AddHandler cgi-script .py
+
+    DirectoryIndex submit_form.py
+
+    AllowOverride None
+    Require all granted
+
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+    <Files "admin.py">
+        AuthType Basic
+        AuthName "Admin Area"
+        AuthBasicProvider file
+        AuthUserFile /etc/apache2/.htpasswd
+        Require valid-user
+    </Files>
+</Directory>
