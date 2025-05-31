@@ -617,15 +617,32 @@
 				</div>
 			</section>
 			<section class="formcarry-container">
-    <!-- login_section -->
-    <!-- credentials_section -->
-    <!-- logout_button -->
-    <h2>Регистрация</h2>
+		<div class="login-section" id="login-section" style="display: none;">
+        <h2>Вход</h2>
+        <form id="login-form" action="submit_form.py" method="POST">
+            <input type="hidden" name="action" value="login">
+            <input type="text" placeholder="Логин" id="username" name="username" required>
+            <input type="password" placeholder="Пароль" id="password" name="password" required>
+            <br></br>
+            <button id="send" type="submit">Войти</button>
+            <br></br>
+        </form>
+    </div>
+
+    <!-- Секция выхода (показывается когда пользователь авторизован) -->
+    <div class="logout-button-container" id="logout-button-container" style="display: none;">
+        <button id="logout-button" class="logout-button">Выйти</button>
+        <br></br>
+    </div>
+
+	
+	<h2 id="form-title">Регистрация</h2>
     <form id="registration-form" action="submit_form.py" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-	<noscript>
+        <noscript>
             <input type="hidden" name="nojs" value="1">
-  	</noscript>        
+        </noscript>
+
         <div class="formcarry-block">
             <input type="text" id="last_name" placeholder="Фамилия" name="last_name" maxlength="50" required
                   value="{{ last_name }}" class="{{ last_name_error_class }}">

@@ -1,72 +1,282 @@
-function setupRegistrationForm() {
-    const form = document.getElementById('registration-form');
-    if (!form) return;
+document.addEventListener('DOMContentLoaded', function() {
+    setupForms();
+    checkAuthStatus();
+});
 
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
+function setupForms() {
+    const registrationForm = document.getElementById('registration-form');
+    const loginForm = document.getElementById('login-form');
+    const logoutButton = document.getElementById('logout-button');
 
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.textContent;
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Отправка...';
+    if (registrationForm) {
+        registrationForm.removeEventListener('submit', handleRegistrationSubmit);
+        registrationForm.removeEventListener('submit', handleUpdateSubmit);
+        registrationForm.addEventListener('submit', handleRegistrationSubmit);
+    }
 
-        try {
-            const formData = new FormData(form);
-            const formObject = {};
+    if (loginForm) {
+        loginForm.removeEventListener('submit', handleLoginSubmit);
+        loginForm.addEventListener('submit', handleLoginSubmit);
+    }
 
-            formData.forEach((value, key) => {
-                if (key === 'languages[]') {
-                    if (!formObject.languages) formObject.languages = [];
-                    formObject.languages.push(value);
-                } else if (key === 'contract') {
-                    formObject[key] = true;
-                } else {
-                    formObject[key] = value;
-                }
-            });
+    if (logoutButton) {
+        logoutButton.removeEventListener('click', handleLogout);
+        logoutButton.addEventListener('click', handleLogout);
+    }
+}
 
-            const errors = validateForm(formObject);
-            if (Object.keys(errors).length > 0) {
-                displayErrors(errors);
-                return;
-            }
+function handleRegistrationSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Отправка...';
 
-            const response = await fetch('api.py/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(formObject)
-            });
+    const formData = new FormData(form);
+    const formObject = {};
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.errors) {
-                    displayErrors(data.errors);
-                } else {
-                    throw new Error(data.error || 'Неизвестная ошибка');
-                }
-                return;
-            }
-
-            localStorage.setItem('username', data.username);
-            localStorage.setItem('password', data.password);
-
-            showCredentials(data.username, data.password);
-
-            showSuccessMessage('Регистрация прошла успешно!');
-
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка: ' + error.message);
-            form.submit();
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalBtnText;
+    formData.forEach((value, key) => {
+        if (key === 'languages[]') {
+            if (!formObject.languages) formObject.languages = [];
+            formObject.languages.push(value);
+        } else if (key === 'contract') {
+            formObject[key] = true;
+        } else {
+            formObject[key] = value;
         }
     });
+
+    const errors = validateForm(formObject);
+    if (Object.keys(errors).length > 0) {
+        displayErrors(errors);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        return;
+    }
+
+    fetch('api.py/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(formObject)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errData => {
+                throw new Error(errData.error || 'Ошибка регистрации');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('password', data.password);
+        showCredentials(data.username, data.password);
+        showSuccessMessage('Регистрация прошла успешно!');
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка: ' + error.message);
+        form.submit();
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    });
+}
+
+function handleLoginSubmit(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Вход...';
+
+    const formData = new FormData(form);
+    const formObject = {
+        username: formData.get('username'),
+        password: formData.get('password')
+    };
+
+    if (!formObject.username || !formObject.password) {
+        alert('Заполните все поля');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        return;
+    }
+
+    const authHeader = 'Basic ' + btoa(`${formObject.username}:${formObject.password}`);
+    
+    fetch(`api.py/users/${formObject.username}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': authHeader,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errData => {
+                throw new Error(errData.error || 'Ошибка авторизации');
+            });
+        }
+        return response.json();
+    })
+    .then(userData => {
+        localStorage.setItem('username', formObject.username);
+        localStorage.setItem('password', formObject.password);
+        showSuccessMessage('Вход выполнен успешно!');
+        checkAuthStatus();
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Ошибка авторизации: ' + error.message);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    });
+}
+
+function handleUpdateSubmit(e) {
+    e.preventDefault();
+
+    const username = localStorage.getItem('username');
+    const password = localStorage.getItem('password');
+    
+    if (!username || !password) {
+        alert('Требуется авторизация');
+        return;
+    }
+
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Обновление...';
+
+    const formData = new FormData(form);
+    const formObject = {};
+
+    formData.forEach((value, key) => {
+        if (key === 'languages[]') {
+            if (!formObject.languages) formObject.languages = [];
+            formObject.languages.push(value);
+        } else if (key === 'contract') {
+            formObject[key] = true;
+        } else {
+            formObject[key] = value;
+        }
+    });
+
+    const errors = validateForm(formObject);
+    if (Object.keys(errors).length > 0) {
+        displayErrors(errors);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+        return;
+    }
+
+    const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+
+    fetch(`api.py/users/${username}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(formObject)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errData => {
+                throw new Error(errData.error || 'Ошибка обновления');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        showSuccessMessage('Данные успешно обновлены!');
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Ошибка обновления: ' + error.message);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    });
+}
+
+function handleLogout(e) {
+    e.preventDefault();
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+    checkAuthStatus();
+    showSuccessMessage('Вы вышли из системы');
+    window.location.reload();
+}
+
+function checkAuthStatus() {
+    const username = localStorage.getItem('username');
+    const password = localStorage.getItem('password');
+    
+    const loginSection = document.getElementById('login-section');
+    const logoutButton = document.getElementById('logout-button-container');
+    const registrationForm = document.getElementById('registration-form');
+    const formTitle = document.getElementById('form-title');
+    
+    if (username && password) {
+        if (loginSection) loginSection.style.display = 'none';
+        if (logoutButton) logoutButton.style.display = 'block';
+        if (formTitle) formTitle.textContent = 'Редактирование профиля';
+        
+        if (registrationForm) {
+            registrationForm.removeEventListener('submit', handleRegistrationSubmit);
+            registrationForm.addEventListener('submit', handleUpdateSubmit);
+        }
+        
+        loadUserProfile(username, password);
+    } else {
+        if (loginSection) loginSection.style.display = 'block';
+        if (logoutButton) logoutButton.style.display = 'none';
+        if (formTitle) formTitle.textContent = 'Регистрация';
+        
+        if (registrationForm) {
+            registrationForm.removeEventListener('submit', handleUpdateSubmit);
+            registrationForm.addEventListener('submit', handleRegistrationSubmit);
+        }
+    }
+}
+
+async function loadUserProfile(username, password) {
+    try {
+        const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+        
+        const response = await fetch(`api.py/users/${username}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': authHeader,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки профиля');
+        }
+
+        const userData = await response.json();
+        loadUserData(userData);
+    } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+    }
 }
 
 function validateForm(data) {
@@ -175,6 +385,36 @@ function showSuccessMessage(message) {
     alert(message);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    setupRegistrationForm();
-});
+function loadUserData(userData) {
+    const registrationForm = document.getElementById('registration-form');
+    if (!registrationForm) return;
+
+    document.getElementById('last_name').value = userData.last_name || '';
+    document.getElementById('first_name').value = userData.first_name || '';
+    document.getElementById('patronymic').value = userData.patronymic || '';
+    document.getElementById('phone').value = userData.phone || '';
+    document.getElementById('email').value = userData.email || '';
+    document.getElementById('birthdate').value = userData.birthdate || '';
+    document.getElementById('bio').value = userData.bio || '';
+
+    if (userData.gender) {
+        document.querySelector(`input[name="gender"][value="${userData.gender}"]`).checked = true;
+    }
+
+    const languageSelect = document.getElementById('languages');
+    if (languageSelect && userData.languages) {
+        Array.from(languageSelect.options).forEach(option => {
+            option.selected = userData.languages.includes(option.value);
+        });
+    }
+
+    document.getElementById('terms').checked = userData.contract || false;
+
+    const submitBtn = registrationForm.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.textContent = 'Обновить';
+    }
+
+    registrationForm.removeEventListener('submit', handleFormSubmit);
+    registrationForm.addEventListener('submit', handleUpdateSubmit);
+}
