@@ -617,102 +617,106 @@
 				</div>
 			</section>
 			<section class="formcarry-container">
-				<!-- login_section -->
-   				<!-- credentials_section -->
-   				<!-- logout_button -->
-				<h2>Регистрация</h2>
-				<form action="submit_form.py" method="POST" enctype="multipart/form-data">
-					<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-					
-					<div class="formcarry-block">
-						<input type="text" id="last_name" placeholder="Фамилия" name="last_name" maxlength="50" required
-							  value="{{ last_name }}" class="{{ last_name_error_class }}">
-						<span class="error-message">{{ last_name_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<input type="text" id="first_name" placeholder="Имя" name="first_name" maxlength="50" required
-							   value="{{ first_name }}" class="{{ first_name_error_class }}">
-						<span class="error-message">{{ first_name_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<input type="text" id="patronymic" placeholder="Отчество" name="patronymic" maxlength="50"
-							   value="{{ patronymic }}" class="{{ patronymic_error_class }}">
-						<span class="error-message">{{ patronymic_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<input type="tel" id="phone" placeholder="Телефон" name="phone" required
-							   value="{{ phone }}" class="{{ phone_error_class }}">
-						<span class="error-message">{{ phone_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<input type="email" id="email" placeholder="Почта" name="email" required
-							   value="{{ email }}" class="{{ email_error_class }}">
-						<span class="error-message">{{ email_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<input type="date" id="birthdate" placeholder="Дата рождения" name="birthdate" required
-							   value="{{ birthdate }}" class="{{ birthdate_error_class }}">
-						<span class="error-message">{{ birthdate_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<div style="color: white; margin-bottom: 10px;">Пол:</div>
-						<div style="display: flex; align-items: center; gap: 15px;">
-							<label for="male" style="color: white; display: flex; align-items: center;">
-								<input type="radio" id="male" name="gender" value="male" required {{ male_checked }} 
-									   style="margin-right: 5px; width: auto;"> Мужской
-							</label>
-							<label for="female" style="color: white; display: flex; align-items: center;">
-								<input type="radio" id="female" name="gender" value="female" required {{ female_checked }}
-									   style="margin-right: 5px; width: auto;"> Женский
-							</label>
-						</div>
-						<span class="error-message">{{ gender_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<select id="languages" name="languages[]" multiple required
-								style="width: 100%; font-size: 14px; margin: 1dvh 0; border-radius: 3px; padding: 1rem 2rem; 
-									   background-color: #040613; border: 1px solid rgba(255, 255, 255, 0.3); 
-									   color: white; font-weight: 700; outline: none; height: auto;">
-							<option value="Pascal" {{ pascal_selected }}>Pascal</option>
-							<option value="C" {{ c_selected }}>C</option>
-							<option value="C++" {{ cpp_selected }}>C++</option>
-							<option value="JavaScript" {{ javascript_selected }}>JavaScript</option>
-							<option value="PHP" {{ php_selected }}>PHP</option>
-							<option value="Python" {{ python_selected }}>Python</option>
-							<option value="Java" {{ java_selected }}>Java</option>
-							<option value="Haskel" {{ haskel_selected }}>Haskel</option>
-							<option value="Clojure" {{ clojure_selected }}>Clojure</option>
-							<option value="Prolog" {{ prolog_selected }}>Prolog</option>
-							<option value="Scala" {{ scala_selected }}>Scala</option>
-							<option value="Go" {{ go_selected }}>Go</option>
-						</select>
-						<span class="error-message">{{ languages_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block">
-						<textarea id="bio" placeholder="Биография" name="bio" rows="4" required class="{{ bio_error_class }}">{{ bio }}</textarea>
-						<span class="error-message">{{ bio_error }}</span><br>
-					</div>
-			
-					<div class="formcarry-block" id="agree-block">
-						<input type="checkbox" id="terms" required name="contract" required {{ contract_checked }}>
-						<label for="contract" id="agree-label">С контрактом ознакомлен(а)</label>
-						<span class="error-message">{{ contract_error }}</span><br>
-						<br></br>
-					</div>
-					
-					<div class="formcarry-block">  
-						<button id="send" type="submit">Сохранить</button>
-					</div>
-				</form>
-			</section>
+    <!-- login_section -->
+    <!-- credentials_section -->
+    <!-- logout_button -->
+    <h2>Регистрация</h2>
+    <form id="registration-form" action="submit_form.py" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+	<noscript>
+            <input type="hidden" name="nojs" value="1">
+  	</noscript>        
+        <div class="formcarry-block">
+            <input type="text" id="last_name" placeholder="Фамилия" name="last_name" maxlength="50" required
+                  value="{{ last_name }}" class="{{ last_name_error_class }}">
+            <span class="error-message" data-for="last_name">{{ last_name_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <input type="text" id="first_name" placeholder="Имя" name="first_name" maxlength="50" required
+                   value="{{ first_name }}" class="{{ first_name_error_class }}">
+            <span class="error-message" data-for="first_name">{{ first_name_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <input type="text" id="patronymic" placeholder="Отчество" name="patronymic" maxlength="50"
+                   value="{{ patronymic }}" class="{{ patronymic_error_class }}">
+            <span class="error-message" data-for="patronymic">{{ patronymic_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <input type="tel" id="phone" placeholder="Телефон" name="phone" required
+                   value="{{ phone }}" class="{{ phone_error_class }}">
+            <span class="error-message" data-for="phone">{{ phone_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <input type="email" id="email" placeholder="Почта" name="email" required
+                   value="{{ email }}" class="{{ email_error_class }}">
+            <span class="error-message" data-for="email">{{ email_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <input type="date" id="birthdate" placeholder="Дата рождения" name="birthdate" required
+                   value="{{ birthdate }}" class="{{ birthdate_error_class }}">
+            <span class="error-message" data-for="birthdate">{{ birthdate_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <div style="color: white; margin-bottom: 10px;">Пол:</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <label for="male" style="color: white; display: flex; align-items: center;">
+                    <input type="radio" id="male" name="gender" value="male" required {{ male_checked }} 
+                           style="margin-right: 5px; width: auto;"> Мужской
+                </label>
+                <label for="female" style="color: white; display: flex; align-items: center;">
+                    <input type="radio" id="female" name="gender" value="female" required {{ female_checked }}
+                           style="margin-right: 5px; width: auto;"> Женский
+                </label>
+            </div>
+            <span class="error-message" data-for="gender">{{ gender_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <select id="languages" name="languages[]" multiple required
+                    style="width: 100%; font-size: 14px; margin: 1dvh 0; border-radius: 3px; padding: 1rem 2rem; 
+                           background-color: #040613; border: 1px solid rgba(255, 255, 255, 0.3); 
+                           color: white; font-weight: 700; outline: none; height: auto;">
+                <option value="Pascal" {{ pascal_selected }}>Pascal</option>
+                <option value="C" {{ c_selected }}>C</option>
+                <option value="C++" {{ cpp_selected }}>C++</option>
+                <option value="JavaScript" {{ javascript_selected }}>JavaScript</option>
+                <option value="PHP" {{ php_selected }}>PHP</option>
+                <option value="Python" {{ python_selected }}>Python</option>
+                <option value="Java" {{ java_selected }}>Java</option>
+                <option value="Haskel" {{ haskel_selected }}>Haskel</option>
+                <option value="Clojure" {{ clojure_selected }}>Clojure</option>
+                <option value="Prolog" {{ prolog_selected }}>Prolog</option>
+                <option value="Scala" {{ scala_selected }}>Scala</option>
+                <option value="Go" {{ go_selected }}>Go</option>
+            </select>
+            <span class="error-message" data-for="languages">{{ languages_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block">
+            <textarea id="bio" placeholder="Биография" name="bio" rows="4" required class="{{ bio_error_class }}">{{ bio }}</textarea>
+            <span class="error-message" data-for="bio">{{ bio_error }}</span><br>
+        </div>
+
+        <div class="formcarry-block" id="agree-block">
+            <input type="checkbox" id="terms" name="contract" required {{ contract_checked }}>
+            <label for="contract" id="agree-label">С контрактом ознакомлен(а)</label>
+            <span class="error-message" data-for="contract">{{ contract_error }}</span><br>
+            <br></br>
+        </div>
+        
+        <div class="formcarry-block">  
+            <button id="send" type="submit">Сохранить</button>
+        </div>
+    </form>
+    <br></br>
+    <section class="credentials"></section>
+</section>
 		</div>
 	</div>
 	<div class="footer">
@@ -720,5 +724,6 @@
 		<p>Drupal является зарегистрированной торговой маркой Dries Buytaert.</p>
 	</div>
 	<script src="js/index.js"></script>
+	<script src="js/form.js"></script>
 </body>
 </html>
