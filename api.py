@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import cgi
 import os
 import json
 import sys
@@ -18,18 +17,14 @@ class DateTimeEncoder(json.JSONEncoder):
         return super().default(o)
 
 def create_connection():
-    try:
-        return pymysql.connect(
-            host='158.160.163.114',
-            user='u68593',
-            password='9258357',
-            database='web_db',
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
-    except pymysql.Error as e:
-        print(f"DB Error: {str(e)}", file=sys.stderr)
-        return None
+    return pymysql.connect(
+        host='158.160.152.200',
+        user='u68593',
+        password='9258357',
+        database='web_db',
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 def validate_form(data):
     errors = {}
@@ -42,22 +37,13 @@ def validate_form(data):
         'birthdate': r'^\d{4}-\d{2}-\d{2}$',
         'bio': r'^.{10,}$'
     }
-    messages = {
-        'last_name': "Фамилия должна содержать только буквы кириллицы",
-        'first_name': "Имя должно содержать только буквы кириллицы",
-        'patronymic': "Отчество должно содержать только буквы кириллицы",
-        'phone': "Некорректный формат телефона",
-        'email': "Некорректный email",
-        'birthdate': "Дата должна быть в формате ГГГГ-ММ-ДД",
-        'bio': "Биография должна содержать минимум 10 символов"
-    }
     
     for field, pattern in patterns.items():
         if field in data and not re.match(pattern, str(data[field])):
-            errors[field] = messages.get(field, "Некорректное значение")
+            errors[field] = f"Некорректное значение поля {field}"
     
     if 'gender' not in data or data['gender'] not in ['male', 'female']:
-        errors['gender'] = "Выберите пол"
+        errors['gender'] = "Выберите пол (male/female)"
     
     if 'languages' not in data or not data['languages']:
         errors['languages'] = "Выберите хотя бы один язык"
@@ -65,7 +51,7 @@ def validate_form(data):
     if 'contract' not in data or not data['contract']:
         errors['contract'] = "Необходимо подтвердить контракт"
     
-    return errors
+    return errors if errors else None
 
 def hash_password(password):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -76,31 +62,75 @@ def generate_credentials():
         'password': secrets.token_hex(8)
     }
 
-def insert_user_data(connection, data, credentials=None):
-    cursor = connection.cursor()
+def parse_input():
+    content_type = os.environ.get('CONTENT_TYPE', '')
     try:
-        if credentials and 'username' in credentials:
-            cursor.execute("""
-                UPDATE applications SET
-                last_name=%s, first_name=%s, patronymic=%s,
-                phone=%s, email=%s, birthdate=%s,
-                gender=%s, bio=%s, contract=%s
-                WHERE username=%s
-            """, (
-                data['last_name'], data['first_name'], data['patronymic'],
-                data['phone'], data['email'], data['birthdate'],
-                data['gender'], data['bio'], data['contract'],
-                credentials['username']
-            ))
-            user_id = credentials['username']
-        else:
-            creds = generate_credentials()
+        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+    except:
+        content_length = 0
+    
+    data = sys.stdin.read(content_length)
+    if not data:
+        return None
+    
+    if 'application/json' in content_type:
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            return None
+    elif 'application/xml' in content_type:
+        try:
+            root = ElementTree.fromstring(data)
+            return {
+                child.tag: child.text if child.tag != 'languages' 
+                else [lang.text for lang in child]
+                for child in root
+            }
+        except:
+            return None
+    return None
+
+def check_auth():
+    auth_header = os.environ.get('HTTP_AUTHORIZATION', '')
+    if not auth_header.startswith('Basic '):
+        return None
+    
+    try:
+        auth_decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+        username, password = auth_decoded.split(':', 1)
+        
+        conn = create_connection()
+        if not conn:
+            return None
+            
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT password_hash FROM applications WHERE username=%s
+                """, (username,))
+                result = cursor.fetchone()
+                if result and result['password_hash'] == hash_password(password):
+                    return username
+                return None
+        finally:
+            conn.close()
+    except:
+        return None
+
+def create_user(data):
+    conn = create_connection()
+    if not conn:
+        return None
+    
+    try:
+        creds = generate_credentials()
+        with conn.cursor() as cursor:
             cursor.execute("""
                 INSERT INTO applications (
-                last_name, first_name, patronymic,
-                phone, email, birthdate,
-                gender, bio, contract,
-                username, password_hash
+                    last_name, first_name, patronymic,
+                    phone, email, birthdate,
+                    gender, bio, contract,
+                    username, password_hash
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 data['last_name'], data['first_name'], data['patronymic'],
@@ -108,46 +138,76 @@ def insert_user_data(connection, data, credentials=None):
                 data['gender'], data['bio'], data['contract'],
                 creds['username'], hash_password(creds['password'])
             ))
-            user_id = creds['username']
-
-        cursor.execute("DELETE FROM application_languages WHERE application_id IN (SELECT id FROM applications WHERE username=%s)", (user_id,))
-        
-        lang_map = {'Pascal':1, 'C':2, 'C++':3, 'JavaScript':4, 'PHP':5,
-                   'Python':6, 'Java':7, 'Haskel':8, 'Clojure':9,
-                   'Prolog':10, 'Scala':11, 'Go':12}
-        
-        for lang in data.get('languages', []):
-            if lang in lang_map:
-                cursor.execute("""
-                    INSERT INTO application_languages (application_id, language_id)
-                    SELECT id, %s FROM applications WHERE username=%s
-                """, (lang_map[lang], user_id))
-        
-        connection.commit()
-        return creds if not credentials else {'username': user_id}
-        
+            
+            lang_map = {'Pascal':1, 'C':2, 'C++':3, 'JavaScript':4, 'PHP':5,
+                      'Python':6, 'Java':7, 'Haskel':8, 'Clojure':9,
+                      'Prolog':10, 'Scala':11, 'Go':12}
+            
+            for lang in data.get('languages', []):
+                if lang in lang_map:
+                    cursor.execute("""
+                        INSERT INTO application_languages (application_id, language_id)
+                        SELECT id, %s FROM applications WHERE username=%s
+                    """, (lang_map[lang], creds['username']))
+            
+            conn.commit()
+            return creds
     except Exception as e:
-        connection.rollback()
+        conn.rollback()
         print(f"DB Error: {str(e)}", file=sys.stderr)
         return None
     finally:
-        cursor.close()
+        conn.close()
 
-def verify_user(connection, username, password):
+def update_user(username, data):
+    conn = create_connection()
+    if not conn:
+        return None
+    
     try:
-        with connection.cursor() as cursor:
+        with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT password_hash FROM applications WHERE username=%s
-            """, (username,))
-            result = cursor.fetchone()
-            return result and result['password_hash'] == hash_password(password)
+                UPDATE applications SET
+                    last_name=%s, first_name=%s, patronymic=%s,
+                    phone=%s, email=%s, birthdate=%s,
+                    gender=%s, bio=%s, contract=%s
+                WHERE username=%s
+            """, (
+                data['last_name'], data['first_name'], data['patronymic'],
+                data['phone'], data['email'], data['birthdate'],
+                data['gender'], data['bio'], data['contract'],
+                username
+            ))
+            
+            cursor.execute("DELETE FROM application_languages WHERE application_id IN (SELECT id FROM applications WHERE username=%s)", (username,))
+            
+            lang_map = {'Pascal':1, 'C':2, 'C++':3, 'JavaScript':4, 'PHP':5,
+                       'Python':6, 'Java':7, 'Haskel':8, 'Clojure':9,
+                       'Prolog':10, 'Scala':11, 'Go':12}
+            
+            for lang in data.get('languages', []):
+                if lang in lang_map:
+                    cursor.execute("""
+                        INSERT INTO application_languages (application_id, language_id)
+                        SELECT id, %s FROM applications WHERE username=%s
+                    """, (lang_map[lang], username))
+            
+            conn.commit()
+            return True
     except Exception as e:
-        print(f"Auth Error: {str(e)}", file=sys.stderr)
-        return False
+        conn.rollback()
+        print(f"DB Error: {str(e)}", file=sys.stderr)
+        return None
+    finally:
+        conn.close()
 
-def get_user_data(connection, username):
+def get_user(username):
+    conn = create_connection()
+    if not conn:
+        return None
+    
     try:
-        with connection.cursor() as cursor:
+        with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT a.*, GROUP_CONCAT(pl.name) as languages
                 FROM applications a
@@ -176,136 +236,92 @@ def get_user_data(connection, username):
     except Exception as e:
         print(f"DB Error: {str(e)}", file=sys.stderr)
         return None
+    finally:
+        conn.close()
 
-def parse_input():
-    content_type = os.environ.get('CONTENT_TYPE', '')
-    try:
-        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
-    except:
-        content_length = 0
-    
-    data = sys.stdin.read(content_length)
-    if not data:
-        return None
-    
-    if 'application/json' in content_type:
-        try:
-            return json.loads(data)
-        except json.JSONDecodeError as e:
-            print(f"JSON Error: {str(e)}", file=sys.stderr)
-            return None
-    elif 'application/xml' in content_type:
-        try:
-            root = ElementTree.fromstring(data)
-            return {
-                child.tag: child.text if child.tag != 'languages' 
-                else [lang.text for lang in child]
-                for child in root
-            }
-        except Exception as e:
-            print(f"XML Error: {str(e)}", file=sys.stderr)
-            return None
-    return None
-
-def check_auth():
-    auth_header = os.environ.get('HTTP_AUTHORIZATION', '')
-    if not auth_header.startswith('Basic '):
-        return None
-    
-    try:
-        auth_decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
-        username, password = auth_decoded.split(':', 1)
-        
-        conn = create_connection()
-        if not conn:
-            return None
-            
-        try:
-            if verify_user(conn, username, password):
-                return username
-            return None
-        finally:
-            conn.close()
-    except Exception as e:
-        print(f"Auth Error: {str(e)}", file=sys.stderr)
-        return None
-
-def main():
+def handle_request():
     sys.stderr = sys.stdout
+    method = os.environ.get('REQUEST_METHOD', 'GET')
+    path = os.environ.get('PATH_INFO', '')
+    
+    # Устанавливаем заголовки ответа
     print("Content-Type: application/json; charset=utf-8\n")
     
-    method = os.environ.get('REQUEST_METHOD', 'GET')
-    path_info = os.environ.get('PATH_INFO', '')
-    
     try:
-        if method == 'POST' and path_info == '/api/submit':
+        # Создание пользователя
+        if method == 'POST' and path == '/users':
             data = parse_input()
             if not data:
-                print(json.dumps({'error': 'Invalid input'}, ensure_ascii=False, cls=DateTimeEncoder))
+                print(json.dumps({'error': 'Invalid input data'}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
+            
             errors = validate_form(data)
             if errors:
                 print(json.dumps({'errors': errors}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
-            conn = create_connection()
-            if not conn:
-                print(json.dumps({'error': 'DB connection failed'}, ensure_ascii=False, cls=DateTimeEncoder))
+            
+            result = create_user(data)
+            if not result:
+                print(json.dumps({'error': 'Failed to create user'}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
-            try:
-                username = check_auth()
-                result = insert_user_data(conn, data, {'username': username} if username else None)
-                
-                if not result:
-                    print(json.dumps({'error': 'Operation failed'}, ensure_ascii=False, cls=DateTimeEncoder))
-                    return
-                    
-                response = {
-                    'message': 'Data updated successfully' if username else 'User created successfully',
-                    'profile_url': f'/api/profile/{username or result["username"]}'
-                }
-                if not username:
-                    response.update({
-                        'username': result['username'],
-                        'password': result['password']
-                    })
-                
-                print(json.dumps(response, ensure_ascii=False, indent=2, cls=DateTimeEncoder))
-                
-            finally:
-                conn.close()
-                
-        elif method == 'GET' and path_info.startswith('/api/profile/'):
-            username = check_auth()
-            if not username:
-                print(json.dumps({'error': 'Authentication required'}, ensure_ascii=False, cls=DateTimeEncoder))
+            
+            response = {
+                'message': 'User created successfully',
+                'username': result['username'],
+                'password': result['password'],
+                'profile_url': f'/users/{result["username"]}'
+            }
+            print(json.dumps(response, ensure_ascii=False, indent=2, cls=DateTimeEncoder))
+        
+        # Обновление пользователя
+        elif method == 'PUT' and path.startswith('/users/'):
+            username = path.split('/')[-1]
+            auth_user = check_auth()
+            
+            if not auth_user or auth_user != username:
+                print(json.dumps({'error': 'Unauthorized'}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
-            requested_user = path_info.split('/')[-1]
-            if requested_user != username:
-                print(json.dumps({'error': 'Access denied'}, ensure_ascii=False, cls=DateTimeEncoder))
+            
+            data = parse_input()
+            if not data:
+                print(json.dumps({'error': 'Invalid input data'}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
-            conn = create_connection()
-            if not conn:
-                print(json.dumps({'error': 'DB connection failed'}, ensure_ascii=False, cls=DateTimeEncoder))
+            
+            errors = validate_form(data)
+            if errors:
+                print(json.dumps({'errors': errors}, ensure_ascii=False, cls=DateTimeEncoder))
                 return
-                
-            try:
-                user_data = get_user_data(conn, username)
-                if not user_data:
-                    print(json.dumps({'error': 'User not found'}, ensure_ascii=False, cls=DateTimeEncoder))
-                    return
-                    
-                print(json.dumps(user_data, ensure_ascii=False, indent=2, cls=DateTimeEncoder))
-            finally:
-                conn.close()
+            
+            if not update_user(username, data):
+                print(json.dumps({'error': 'Failed to update user'}, ensure_ascii=False, cls=DateTimeEncoder))
+                return
+            
+            print(json.dumps({
+                'message': 'User updated successfully',
+                'profile_url': f'/users/{username}'
+            }, ensure_ascii=False, indent=2, cls=DateTimeEncoder))
+        
+        # Получение профиля
+        elif method == 'GET' and path.startswith('/users/'):
+            username = path.split('/')[-1]
+            auth_user = check_auth()
+            
+            if not auth_user or auth_user != username:
+                print(json.dumps({'error': 'Unauthorized'}, ensure_ascii=False, cls=DateTimeEncoder))
+                return
+            
+            user_data = get_user(username)
+            if not user_data:
+                print(json.dumps({'error': 'User not found'}, ensure_ascii=False, cls=DateTimeEncoder))
+                return
+            
+            print(json.dumps(user_data, ensure_ascii=False, indent=2, cls=DateTimeEncoder))
+        
         else:
             print(json.dumps({'error': 'Not found'}, ensure_ascii=False, cls=DateTimeEncoder))
+    
     except Exception as e:
         print(json.dumps({'error': str(e)}, ensure_ascii=False, cls=DateTimeEncoder))
 
 if __name__ == "__main__":
-    main()
+    handle_request()
