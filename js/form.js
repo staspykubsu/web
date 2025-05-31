@@ -73,8 +73,6 @@ function handleRegistrationSubmit(e) {
         return response.json();
     })
     .then(data => {
-        localStorage.setItem('username', data.username);
-        localStorage.setItem('password', data.password);
         showCredentials(data.username, data.password);
         showSuccessMessage('Регистрация прошла успешно!');
     })
@@ -133,6 +131,7 @@ function handleLoginSubmit(e) {
         localStorage.setItem('password', formObject.password);
         showSuccessMessage('Вход выполнен успешно!');
         checkAuthStatus();
+        hideCredentials();
     })
     .catch(error => {
         console.error('Ошибка:', error);
@@ -142,6 +141,63 @@ function handleLoginSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
     });
+}
+
+function handleLogout(e) {
+    e.preventDefault();
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+    hideCredentials();
+    showSuccessMessage('Вы вышли из системы');
+    checkAuthStatus();
+    
+    const registrationForm = document.getElementById('registration-form');
+    if (registrationForm) {
+        registrationForm.reset();
+        const submitBtn = registrationForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.textContent = 'Сохранить';
+        }
+    }
+}
+
+function checkAuthStatus() {
+    const username = localStorage.getItem('username');
+    const password = localStorage.getItem('password');
+    
+    const loginSection = document.getElementById('login-section');
+    const logoutButton = document.getElementById('logout-button-container');
+    const registrationForm = document.getElementById('registration-form');
+    const formTitle = document.getElementById('form-title');
+    
+    if (username && password) {
+        if (loginSection) loginSection.style.display = 'none';
+        if (logoutButton) logoutButton.style.display = 'block';
+        if (formTitle) formTitle.textContent = 'Редактирование профиля';
+        
+        if (registrationForm) {
+            registrationForm.removeEventListener('submit', handleRegistrationSubmit);
+            registrationForm.addEventListener('submit', handleUpdateSubmit);
+        }
+        
+        loadUserProfile(username, password);
+    } else {
+        if (loginSection) loginSection.style.display = 'block';
+        if (logoutButton) logoutButton.style.display = 'none';
+        if (formTitle) formTitle.textContent = 'Регистрация';
+        
+        if (registrationForm) {
+            registrationForm.removeEventListener('submit', handleUpdateSubmit);
+            registrationForm.addEventListener('submit', handleRegistrationSubmit);
+        }
+    }
+}
+
+function hideCredentials() {
+    const credentialsSection = document.querySelector('.credentials');
+    if (credentialsSection) {
+        credentialsSection.innerHTML = '';
+    }
 }
 
 function handleUpdateSubmit(e) {
@@ -215,47 +271,6 @@ function handleUpdateSubmit(e) {
     });
 }
 
-function handleLogout(e) {
-    e.preventDefault();
-    localStorage.removeItem('username');
-    localStorage.removeItem('password');
-    checkAuthStatus();
-    showSuccessMessage('Вы вышли из системы');
-    window.location.reload();
-}
-
-function checkAuthStatus() {
-    const username = localStorage.getItem('username');
-    const password = localStorage.getItem('password');
-    
-    const loginSection = document.getElementById('login-section');
-    const logoutButton = document.getElementById('logout-button-container');
-    const registrationForm = document.getElementById('registration-form');
-    const formTitle = document.getElementById('form-title');
-    
-    if (username && password) {
-        if (loginSection) loginSection.style.display = 'none';
-        if (logoutButton) logoutButton.style.display = 'block';
-        if (formTitle) formTitle.textContent = 'Редактирование профиля';
-        
-        if (registrationForm) {
-            registrationForm.removeEventListener('submit', handleRegistrationSubmit);
-            registrationForm.addEventListener('submit', handleUpdateSubmit);
-        }
-        
-        loadUserProfile(username, password);
-    } else {
-        if (loginSection) loginSection.style.display = 'block';
-        if (logoutButton) logoutButton.style.display = 'none';
-        if (formTitle) formTitle.textContent = 'Регистрация';
-        
-        if (registrationForm) {
-            registrationForm.removeEventListener('submit', handleUpdateSubmit);
-            registrationForm.addEventListener('submit', handleRegistrationSubmit);
-        }
-    }
-}
-
 async function loadUserProfile(username, password) {
     try {
         const authHeader = 'Basic ' + btoa(`${username}:${password}`);
@@ -280,6 +295,8 @@ async function loadUserProfile(username, password) {
 }
 
 function validateForm(data) {
+    clearAllErrors();
+    
     const errors = {};
     const patterns = {
         'last_name': /^[А-Яа-яЁё]+$/,
@@ -313,6 +330,16 @@ function validateForm(data) {
     }
 
     return errors;
+}
+
+function clearAllErrors() {
+    document.querySelectorAll('.error-message').forEach(el => {
+        el.textContent = '';
+    });
+    
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.classList.remove('error');
+    });
 }
 
 function displayErrors(errors) {
