@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAuthStatus();
 });
 
+function utf8ToB64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
+}
+
 function setupForms() {
     const registrationForm = document.getElementById('registration-form');
     const loginForm = document.getElementById('login-form');
@@ -106,7 +110,7 @@ function handleLoginSubmit(e) {
         return;
     }
 
-    const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+    const authHeader = 'Basic ' + utf8ToB64(`${username}:${password}`);
     fetch(`api.py/users/${encodeURIComponent(username)}`, {
         method: 'GET',
         headers: {
@@ -147,6 +151,7 @@ function handleLogout(e) {
     showSuccessMessage('Вы вышли из системы');
     checkAuthStatus();
     
+    // Очищаем поля формы авторизации
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.reset();
@@ -240,7 +245,7 @@ function handleUpdateSubmit(e) {
         return;
     }
 
-    const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+    const authHeader = 'Basic ' + utf8ToB64(`${username}:${password}`);
 
     fetch(`api.py/users/${username}`, {
         method: 'PUT',
@@ -274,7 +279,7 @@ function handleUpdateSubmit(e) {
 
 async function loadUserProfile(username, password) {
     try {
-        const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+	const authHeader = 'Basic ' + utf8ToB64(`${username}:${password}`);
         
         const response = await fetch(`api.py/users/${username}`, {
             method: 'GET',
