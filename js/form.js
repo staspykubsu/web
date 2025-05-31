@@ -89,7 +89,6 @@ function handleRegistrationSubmit(e) {
 
 function handleLoginSubmit(e) {
     e.preventDefault();
-
     const form = e.target;
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalBtnText = submitBtn.textContent;
@@ -97,21 +96,18 @@ function handleLoginSubmit(e) {
     submitBtn.textContent = 'Вход...';
 
     const formData = new FormData(form);
-    const formObject = {
-        username: formData.get('username'),
-        password: formData.get('password')
-    };
+    const username = formData.get('username');
+    const password = formData.get('password');
 
-    if (!formObject.username || !formObject.password) {
+    if (!username || !password) {
         alert('Заполните все поля');
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
         return;
     }
 
-    const authHeader = 'Basic ' + btoa(`${formObject.username}:${formObject.password}`);
-    
-    fetch(`api.py/users/${formObject.username}`, {
+    const authHeader = 'Basic ' + btoa(`${username}:${password}`);
+    fetch(`api.py/users/${encodeURIComponent(username)}`, {
         method: 'GET',
         headers: {
             'Authorization': authHeader,
@@ -120,22 +116,22 @@ function handleLoginSubmit(e) {
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(errData => {
-                throw new Error(errData.error || 'Ошибка авторизации');
+            return response.json().then(data => {
+                throw new Error(data.error || 'Ошибка авторизации');
             });
         }
         return response.json();
     })
     .then(userData => {
-        localStorage.setItem('username', formObject.username);
-        localStorage.setItem('password', formObject.password);
+        localStorage.setItem('username', username);
+        localStorage.setItem('password', password);
         showSuccessMessage('Вход выполнен успешно!');
         checkAuthStatus();
         hideCredentials();
     })
     .catch(error => {
         console.error('Ошибка:', error);
-        alert('Ошибка авторизации: ' + error.message);
+        alert('Ошибка авторизации: Неправильный логин или пароль.');
     })
     .finally(() => {
         submitBtn.disabled = false;
