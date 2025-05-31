@@ -151,7 +151,6 @@ function handleLogout(e) {
     showSuccessMessage('Вы вышли из системы');
     checkAuthStatus();
     
-    // Очищаем поля формы авторизации
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.reset();
@@ -314,25 +313,35 @@ function validateForm(data) {
         'bio': /^.{10,}$/
     };
 
-    if (!data.last_name) errors.last_name = "Фамилия обязательна";
-    if (!data.first_name) errors.first_name = "Имя обязательно";
+    if (!data.last_name) errors.last_name = "Фамилия обязательна для заполнения.";
+    if (!data.first_name) errors.first_name = "Имя обязательно для заполнения.";
+
+    const errorMessages = {
+        'last_name': "Фамилия должна содержать только буквы кириллицы.",
+        'first_name': "Имя должно содержать только буквы кириллицы.",
+        'patronymic': "Отчество должно содержать только буквы кириллицы (если указано).",
+        'phone': "Телефон должен быть длиной от 10 до 15 цифр и может начинаться с '+'",
+        'email': "Некорректный email. Пример: example@domain.com",
+        'birthdate': "Дата рождения должна быть в формате YYYY-MM-DD.",
+        'bio': "Биография должна содержать не менее 10 символов."
+    };
 
     for (const field in patterns) {
         if (data[field] && !patterns[field].test(data[field])) {
-            errors[field] = `Некорректное значение поля ${field}`;
+            errors[field] = errorMessages[field];
         }
     }
 
     if (!data.gender) {
-        errors.gender = "Выберите пол";
+        errors.gender = "Выберите пол.";
     }
 
     if (!data.languages || data.languages.length === 0) {
-        errors.languages = "Выберите хотя бы один язык";
+        errors.languages = "Выберите хотя бы один язык программирования.";
     }
 
     if (!data.contract) {
-        errors.contract = "Необходимо подтвердить контракт";
+        errors.contract = "Необходимо подтвердить соглашение.";
     }
 
     return errors;
