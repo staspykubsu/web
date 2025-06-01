@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     showJsElements();
-    
     setupForms();
     checkAuthStatus();
+    loadFormDataFromCookies();
 });
 
 function showJsElements() {
@@ -85,6 +85,8 @@ function handleRegistrationSubmit(e) {
         return;
     }
 
+    saveFormDataToCookies(formObject);
+
     fetch('api.py/users', {
         method: 'POST',
         headers: {
@@ -108,7 +110,6 @@ function handleRegistrationSubmit(e) {
     .catch(error => {
         console.error('Ошибка:', error);
         alert('Произошла ошибка: ' + error.message);
-        form.submit();
     })
     .finally(() => {
         submitBtn.disabled = false;
@@ -183,7 +184,6 @@ function handleLogout(e) {
     
     const registrationForm = document.getElementById('registration-form');
     if (registrationForm) {
-        registrationForm.reset();
         const submitBtn = registrationForm.querySelector('button[type="submit"]');
         if (submitBtn) {
             submitBtn.textContent = 'Сохранить';
@@ -261,6 +261,8 @@ function handleUpdateSubmit(e) {
         }
     });
 
+    saveFormDataToCookies(formObject);
+
     const errors = validateForm(formObject);
     if (Object.keys(errors).length > 0) {
         displayErrors(errors);
@@ -299,6 +301,74 @@ function handleUpdateSubmit(e) {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
     });
+}
+
+function saveFormDataToCookies(formData) {
+    const expiryDate = new Date();
+    expiryDate.setTime(expiryDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+    const expires = "expires=" + expiryDate.toUTCString();
+    
+    for (const key in formData) {
+        if (key === 'languages') {
+            document.cookie = `form_${key}=${encodeURIComponent(formData[key].join(','))};${expires};path=/`;
+        } else if (key === 'contract') {
+            document.cookie = `form_${key}=${formData[key] ? '1' : '0'};${expires};path=/`;
+        } else if (formData[key] !== undefined && formData[key] !== null) {
+            document.cookie = `form_${key}=${encodeURIComponent(formData[key])};${expires};path=/`;
+        }
+    }
+}
+
+function loadFormDataFromCookies() {
+    const username = localStorage.getItem('username');
+    if (username) {
+        return;
+    }
+
+    const cookies = document.cookie.split(';');
+    const formData = {};
+
+    cookies.forEach(cookie => {
+        const [name, value] = cookie.trim().split('=');
+        if (name.startsWith('form_')) {
+            const fieldName = name.substring(5);
+            formData[fieldName] = decodeURIComponent(value);
+        }
+    });
+
+    if (Object.keys(formData).length > 0) {
+        const registrationForm = document.getElementById('registration-form');
+        if (!registrationForm) return;
+
+        const textFields = ['last_name', 'first_name', 'patronymic', 'phone', 'email', 'birthdate', 'bio'];
+        textFields.forEach(field => {
+            if (formData[field]) {
+                const element = document.getElementById(field);
+                if (element) element.value = formData[field];
+            }
+        });
+
+        if (formData.gender) {
+            const genderElements = document.querySelectorAll(`input[name="gender"]`);
+            genderElements.forEach(el => {
+                el.checked = (el.value === formData.gender);
+            });
+        }
+
+        if (formData.languages) {
+            const languages = formData.languages.split(',');
+            const languageSelect = document.getElementById('languages');
+            if (languageSelect) {
+                Array.from(languageSelect.options).forEach(option => {
+                    option.selected = languages.includes(option.value);
+                });
+            }
+        }
+
+        if (formData.contract) {
+            document.getElementById('terms').checked = formData.contract === '1';
+        }
+    }
 }
 
 async function loadUserProfile(username, password) {
