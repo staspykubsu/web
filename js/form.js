@@ -1,7 +1,32 @@
 document.addEventListener('DOMContentLoaded', function() {
+    showJsElements();
+    
     setupForms();
     checkAuthStatus();
 });
+
+function showJsElements() {
+    const credentialsSection = document.querySelector('.credentials');
+    if (credentialsSection) {
+        credentialsSection.style.display = 'block';
+    }
+    
+    const loginSection = document.getElementById('login-section');
+    const logoutSection = document.getElementById('logout-button-container');
+    
+    if (loginSection) {
+        loginSection.style.display = 'block';
+    }
+    
+    if (logoutSection) {
+        logoutSection.style.display = 'none';
+    }
+    
+    const noscriptElements = document.querySelectorAll('noscript');
+    noscriptElements.forEach(el => {
+        el.style.display = 'none';
+    });
+}
 
 function utf8ToB64(str) {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
